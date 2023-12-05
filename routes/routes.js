@@ -4,6 +4,9 @@ const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const Image = require("../models/Image");
 
+const { registerUser, loginUser, logoutUser, authChecker } = require("../controllers/AuthController");
+const { registerLimiter, loginLimiter } = require("../utils/rateLimiter");
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'images');
@@ -23,8 +26,6 @@ const fileFilter = (req, file, cb) => {
 };
 
 let upload = multer({ storage, fileFilter });
-
-// Routes
 
 router.route('/getAllImages').get(async (req, res) => {
   Image.find()
@@ -66,9 +67,6 @@ router.route("/upload").post(upload.single('photo'), async (req, res) => {
     .then(() => res.json(newImage))
     .catch((err) => res.status(400).json('Error: ' + err));
 });
-
-// Reviews
-
 // Get reviews for a specific image
 router.route('/getReviewsByImageId/:id').get(async (req, res) => {
   const imageId = req.params.id;
@@ -116,6 +114,18 @@ router.route('/postReview/:id').post(async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+router.post("/register", registerLimiter, registerUser );
+// Logs In a User, creates session in mongo store
+// and returns a cookie containing sessionID, also called "session-id"
+router.post("/login", loginLimiter, loginUser );
+// Log out user by deleting session from store
+// and deleting cookie on client side
+// Needs cookie containing sessionID to be attached to request
+router.delete("/logout", logoutUser );
+// Check if user is Authenticated by reading session data
+// Needs cookie containing sessionID
+router.get("/authchecker", authChecker );
+
 
 
 module.exports = router;
